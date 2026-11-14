@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eja</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f2f6fb;--fg:#14213d;--key:#ffffff;--line:#c5d0e0;--acc:#14213d;--accfg:#ffffff;--hi:#ffd166;--mut:#56627a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#10151f;--fg:#eef2fa;--key:#1c2433;--line:#3a465c;--acc:#ffd166;--accfg:#10151f;--hi:#7a5c12;--mut:#9aa7bf}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#10151f;--fg:#eef2fa;--key:#1c2433;--line:#3a465c;--acc:#ffd166;--accfg:#10151f;--hi:#7a5c12;--mut:#9aa7bf}
+html{scroll-padding-top:env(safe-area-inset-top,0px);background:var(--bg)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Andika","Atkinson Hyperlegible",system-ui,sans-serif}
+main{max-width:520px;margin:0 auto;padding:14px 12px 24px}
+#kata{min-height:92px;font-size:3.4rem;font-weight:700;letter-spacing:.08em;word-break:break-all;border-bottom:3px solid var(--line);padding:6px 4px;display:flex;align-items:center}
+#langkah{min-height:3.6rem;font-size:1.7rem;margin:12px 0 14px;padding:8px 10px;border-radius:10px;background:var(--key);border:1px solid var(--line);display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px}
+#kata{flex-wrap:wrap}
+#kata span{border-radius:10px;padding:0 2px}
+#kata span.on{background:var(--hi)}
+#langkah.kosong{color:var(--mut);font-size:1.05rem}
+#langkah span{padding:2px 8px;border-radius:8px}
+#langkah span.on{background:var(--hi)}
+#grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+button{font:inherit;color:var(--fg);background:var(--key);border:2px solid var(--line);border-radius:12px;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#grid button{min-height:56px;font-size:1.6rem;font-weight:700}
+#grid button:active{background:var(--hi)}
+#aksi{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:8px;margin-top:12px}
+#aksi button{min-height:56px;font-size:1.15rem;font-weight:700}
+#eja{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+#status{margin-top:14px;font-size:.9rem;color:var(--mut)}
+#uji{margin-top:16px;color:var(--mut);font-size:.95rem}
+#uji div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#uji button{padding:8px 14px;font-size:1.05rem}
+#contoh{margin-top:18px;color:var(--mut);font-size:.95rem}
+#contoh div{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+#contoh button{padding:8px 14px;font-size:1.05rem}
+</style>
+</head>
+<body>
+<main>
+<div id="kata" aria-live="polite"></div>
+<div id="langkah" class="kosong">Ketik huruf, lalu tekan Eja.</div>
+<div id="grid"></div>
+<div id="aksi">
+<button id="hapus">Hapus</button>
+<button id="bersih">Bersih</button>
+<button id="eja">Eja</button>
+</div>
+<div id="contoh">Contoh kata:<div id="chips"></div></div>
+<div id="status"></div>
+<div id="uji">Uji bunyi huruf P (ketuk, lalu dengarkan):<div id="ujiB"></div></div>
+</main>
+<script>
+const N={a:"a",b:"be",c:"ce",d:"de",e:"e",f:"ef",g:"ge",h:"ha",i:"i",j:"je",k:"ka",l:"el",m:"em",n:"en",o:"o",p:"pe",q:"ki",r:"er",s:"es",t:"te",u:"u",v:"ve",w:"we",x:"eks",y:"ye",z:"zet"};
+const NG={ng:["en","ge"],ny:["en","ye"],sy:["es","ye"],kh:["ka","ha"]};
+const DG=Object.keys(NG),V="aiueo";
+/* Skrip eja per kata. Tiap baris = satu langkah, dibaca berurutan, lalu jeda.
+   Pola A: ng ikut suku kata sebelumnya (bang-ngun). Pola B: ng jadi awal suku kata berikutnya (ta-ngan). */
+const D={
+buku:[["be","u","bu"],["ka","u","ku"],["bu","ku"],["buku"]],
+bubur:[["be","u","bu"],["be","u","bu"],["er","bur"],["bu","bur"],["bubur"]],
+pentas:[["pe","e","pe"],["en","pen"],["te","a","ta"],["es","tas"],["pen","tas"],["pentas"]],
+yang:[["ye","a","ya"],["en","ge"],["yang"]],
+bangun:[["be","a","ba"],["en","ge"],["bang"],["u","en","un"],["bang","ngun"],["bangun"]],
+tangan:[["te","a","ta"],["en","ge","a","nga"],["en"],["ngan"],["ta","ngan"],["tangan"]]
+};
+/* Eja otomatis untuk kata yang belum ada di kamus (memakai pola B untuk ng). */
+function tok(w){const t=[];for(let i=0;i<w.length;){const p=w.slice(i,i+2);
+if(["ai","au","oi"].includes(p)){t.push({v:1,s:p});i+=2}
+else if(DG.includes(p)){t.push({v:0,s:p});i+=2}
+else{t.push({v:V.includes(w[i])?1:0,s:w[i]});i++}}return t}
+function auto(w){
+const t=tok(w),n=[];t.forEach((x,i)=>x.v&&n.push(i));
+if(!n.length)return null;
+const c=[0];for(let k=0;k<n.length-1;k++){const a=n[k],b=n[k+1],g=b-a-1;c.push(g==0?b:g==1?a+1:a+2)}
+c.push(t.length);
+const nm=s=>DG.includes(s)?NG[s]:[N[s]||s],steps=[],sy=[];
+for(let i=0;i<c.length-1;i++){
+const p=t.slice(c[i],c[i+1]),j=p.findIndex(x=>x.v),on=p.slice(0,j);
+let base="";const a=[];
+on.forEach(x=>{a.push(...nm(x.s));base+=x.s});
+a.push(p[j].s);base+=p[j].s;a.push(base);
+steps.push(on.length?a:[base]);
+p.slice(j+1).forEach(x=>{base+=x.s;steps.push([...nm(x.s),base])});
+sy.push(base)}
+if(sy.length>1){sy.j=1;steps.push(sy)}
+steps.push([w]);return steps}
+
+let voices=[];
+const info=m=>{const s=document.getElementById("status");if(s)s.textContent=m};
+if("speechSynthesis" in window){const lv=()=>{voices=speechSynthesis.getVoices();info("Suara di perangkat: "+voices.length+", bahasa Indonesia: "+voices.filter(x=>x.lang.toLowerCase().replace("_","-").startsWith("id")).length)};lv();speechSynthesis.onvoiceschanged=lv}else info("Perangkat ini tidak mendukung suara (speechSynthesis).");
+const E={};
+const fx=t=>E[t]||t;
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const getTTS=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TextToSpeech;
+function cancelSpeech(){const T=getTTS();if(T){T.stop().catch(()=>{})}else if("speechSynthesis" in window)speechSynthesis.cancel()}
+setTimeout(()=>{if(getTTS())info("Memakai suara asli Android (Google TTS).")},400);
+function say(t){const T=getTTS();if(T)return T.speak({text:t,lang:"id-ID",rate:.8,pitch:1,volume:1}).catch(()=>{});return new Promise(r=>{
+if(!("speechSynthesis" in window)){setTimeout(r,500);return}
+const u=new SpeechSynthesisUtterance(t);u.lang="id-ID";u.rate=.8;
+const idv=voices.filter(x=>x.lang.replace("_","-").toLowerCase().startsWith("id"));const v=idv.find(x=>x.localService)||idv[0];if(v)u.voice=v;
+let d=0;const f=()=>{if(!d){d=1;r()}};u.onend=f;u.onerror=e=>{info("Suara gagal: "+(e.error||"tidak diketahui"));f()};setTimeout(f,4000);
+speechSynthesis.speak(u)})}
+
+const $=id=>document.getElementById(id);
+const kata=$("kata"),langkah=$("langkah"),btn=$("eja");
+let buf="",run=0,running=false;
+function draw(){kata.textContent="";[...buf].forEach(ch=>{const s=document.createElement("span");s.textContent=ch;kata.appendChild(s)})}
+function hl(a,b){[...kata.children].forEach((s,i)=>{s.className=i>=a&&i<b?"on":""})}
+const REV={};for(const k in N)REV[N[k]]=k;["ai","au","oi"].forEach(x=>{REV[x]=x});
+function eat(w,p,a,i,end){
+for(const g of DG)if(i+1<end&&a[i]===NG[g][0]&&a[i+1]===NG[g][1]&&w.startsWith(g,p))return[g.length,2];
+const L=REV[a[i]];return L&&w.startsWith(L,p)?[L.length,1]:null}
+/* Menghitung huruf mana (awal,akhir) yang disorot untuk tiap bunyi dalam tiap langkah. */
+function ranges(w,st){
+const out=[],len=w.length;let c=0,sy=0;
+st.forEach((s,k)=>{
+if(k===st.length-1){out.push(s.map(()=>[0,len]));return}
+const tryEat=end=>{const r=[];let p=c,i=0,vow=false;
+while(i<end){const e=eat(w,p,s,i,end);if(!e)return null;
+for(let q=0;q<e[1];q++)r.push([p,p+e[0]]);
+if(V.includes(w[p]))vow=true;p+=e[0];i+=e[1]}
+return{r,p,vow}};
+if(s.length>1&&!s.j){const t=tryEat(s.length-1);
+if(t){const b=t.vow?c:sy;
+if(s[s.length-1]===w.slice(b,t.p)){out.push([...t.r,[b,t.p]]);if(t.vow)sy=c;c=t.p;return}}}
+if(!s.j){const t=tryEat(s.length);
+if(t&&c<len){out.push(t.r);if(t.vow)sy=c;c=t.p;return}}
+if(s.length===1){out.push([[sy,c]]);return}
+const r=[];let f=0;
+s.forEach((x,i)=>{const j=w.indexOf(x,i?f+1:0);if(j<0){r.push([0,len]);return}r.push([j,j+x.length]);f=j});
+out.push(r)});
+return out}
+function show(items,i){langkah.className="";langkah.textContent="";
+items.forEach((x,k)=>{const s=document.createElement("span");s.textContent=x;if(k===i)s.className="on";langkah.appendChild(s)})}
+function reset(){running=false;btn.textContent="Eja";hl(0,0)}
+function stop(){run++;cancelSpeech();reset()}
+async function play(){
+if(running){stop();return}
+const w=buf.toLowerCase();if(!w)return;
+const steps=D[w]||auto(w);if(!steps){langkah.className="kosong";langkah.textContent="Tambahkan huruf vokal.";return}
+const R=ranges(w,steps);const id=++run;running=true;btn.textContent="Berhenti";
+for(let k=0;k<steps.length;k++){const s=steps[k];
+if(id!==run)return;
+for(let i=0;i<s.length;i++){
+if(id!==run)return;
+const raw=s.j||s.length===1||(i===s.length-1&&s.length>2);show(s,i);hl(R[k][i][0],R[k][i][1]);await say(raw?s[i]:fx(s[i]));await wait(250)}
+await wait(700)}
+if(id===run){langkah.className="kosong";langkah.textContent="Selesai. Coba kata lain.";reset()}}
+function tambah(ch){if(running)stop();buf+=ch;draw();
+cancelSpeech();setTimeout(()=>say(fx(N[ch])),60)}
+const grid=$("grid");
+for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>tambah(ch);grid.appendChild(b)}
+$("hapus").onclick=()=>{if(running)stop();buf=buf.slice(0,-1);draw()};
+$("bersih").onclick=()=>{if(running)stop();buf="";draw();langkah.className="kosong";langkah.textContent="Ketik huruf, lalu tekan Eja."};
+btn.onclick=play;
+const chips=$("chips");
+Object.keys(D).forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>{if(running)stop();buf=w;draw()};chips.appendChild(b)});
+["pé","pee","peh","pei","pey","pè","sate","pemula"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{cancelSpeech();setTimeout(()=>say(t),60)};$("ujiB").appendChild(b)});
+document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;
+if(/^[a-z]$/i.test(e.key))tambah(e.key.toLowerCase());
+else if(e.key==="Backspace"){if(running)stop();buf=buf.slice(0,-1);draw()}
+else if(e.key==="Enter"){e.preventDefault();play()}});
+</script>
+</body>
+</html>
