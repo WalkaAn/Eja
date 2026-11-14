@@ -50,7 +50,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 </div>
 <div id="contoh">Contoh kata:<div id="chips"></div></div>
 <div id="status"></div>
-<div id="uji">Uji bunyi huruf P (ketuk, lalu dengarkan):<div id="ujiB"></div></div>
+<div id="uji">Suara Indonesia di perangkat: <select id="vsel"></select><br>Uji bunyi huruf (ketuk, lalu dengarkan):<div id="ujiB"></div></div>
 </main>
 <script>
 const N={a:"a",b:"be",c:"ce",d:"de",e:"e",f:"ef",g:"ge",h:"ha",i:"i",j:"je",k:"ka",l:"el",m:"em",n:"en",o:"o",p:"pe",q:"ki",r:"er",s:"es",t:"te",u:"u",v:"ve",w:"we",x:"eks",y:"ye",z:"zet"};
@@ -94,10 +94,11 @@ if("speechSynthesis" in window){const lv=()=>{voices=speechSynthesis.getVoices()
 const E={};
 const fx=t=>E[t]||t;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
+let vidx=-1;try{vidx=+(localStorage.getItem("eja_v")??-1)}catch(e){}
 const getTTS=()=>window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.TextToSpeech;
 function cancelSpeech(){const T=getTTS();if(T){T.stop().catch(()=>{})}else if("speechSynthesis" in window)speechSynthesis.cancel()}
 setTimeout(()=>{if(getTTS())info("Memakai suara asli Android (Google TTS).")},400);
-function say(t){const T=getTTS();if(T)return T.speak({text:t,lang:"id-ID",rate:.8,pitch:1,volume:1}).catch(()=>{});return new Promise(r=>{
+function say(t){const T=getTTS();if(T)return T.speak(Object.assign({text:t,lang:"id-ID",rate:.8,pitch:1,volume:1},vidx>=0?{voice:vidx}:{})).catch(()=>{});return new Promise(r=>{
 if(!("speechSynthesis" in window)){setTimeout(r,500);return}
 const u=new SpeechSynthesisUtterance(t);u.lang="id-ID";u.rate=.8;
 const idv=voices.filter(x=>x.lang.replace("_","-").toLowerCase().startsWith("id"));const v=idv.find(x=>x.localService)||idv[0];if(v)u.voice=v;
@@ -158,7 +159,13 @@ $("bersih").onclick=()=>{if(running)stop();buf="";draw();langkah.className="koso
 btn.onclick=play;
 const chips=$("chips");
 Object.keys(D).forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>{if(running)stop();buf=w;draw()};chips.appendChild(b)});
-["pé","pee","peh","pei","pey","pè","sate","pemula"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{cancelSpeech();setTimeout(()=>say(t),60)};$("ujiB").appendChild(b)});
+["pe","pé","peh","pee","be","bé","beh","bee","we","wé","weh","wee"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{cancelSpeech();setTimeout(()=>say(t),60)};$("ujiB").appendChild(b)});
+(async()=>{const T=getTTS(),sel=$("vsel");if(!T||!T.getSupportedVoices){sel.style.display="none";return}
+try{const r=await T.getSupportedVoices();const vs=r.voices||[];
+const o=document.createElement("option");o.value=-1;o.textContent="Bawaan";sel.appendChild(o);
+vs.forEach((v,i)=>{if(!/^id/i.test((v.lang||"").replace("_","-")))return;const q=document.createElement("option");q.value=i;q.textContent=(v.name||v.voiceURI)+" ("+v.lang+")";sel.appendChild(q)});
+sel.value=vidx;sel.onchange=()=>{vidx=+sel.value;try{localStorage.setItem("eja_v",vidx)}catch(e){}cancelSpeech();setTimeout(()=>say("pe"),60)}}
+catch(e){info("Gagal membaca daftar suara: "+e)}})();
 document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;
 if(/^[a-z]$/i.test(e.key))tambah(e.key.toLowerCase());
 else if(e.key==="Backspace"){if(running)stop();buf=buf.slice(0,-1);draw()}
