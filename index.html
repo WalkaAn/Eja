@@ -91,7 +91,7 @@ steps.push([w]);return steps}
 let voices=[];
 const info=m=>{const s=document.getElementById("status");if(s)s.textContent=m};
 if("speechSynthesis" in window){const lv=()=>{voices=speechSynthesis.getVoices();info("Suara di perangkat: "+voices.length+", bahasa Indonesia: "+voices.filter(x=>x.lang.toLowerCase().replace("_","-").startsWith("id")).length)};lv();speechSynthesis.onvoiceschanged=lv}else info("Perangkat ini tidak mendukung suara (speechSynthesis).");
-const E={};
+const E={pe:"peh",be:"beh",we:"weh"};
 const fx=t=>E[t]||t;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 let vidx=-1;try{vidx=+(localStorage.getItem("eja_v")??-1)}catch(e){}
