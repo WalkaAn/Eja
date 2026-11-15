@@ -26,7 +26,8 @@ button{font:inherit;color:var(--fg);background:var(--key);border:2px solid var(-
 button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 #grid button{min-height:56px;font-size:1.6rem;font-weight:700}
 #grid button:active{background:var(--hi)}
-#aksi{display:grid;grid-template-columns:1fr 1fr 1.6fr;gap:8px;margin-top:12px}
+#grid #hapus{grid-column:span 4;font-size:1.3rem;border-color:var(--acc)}
+#aksi{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;margin-top:12px}
 #aksi button{min-height:56px;font-size:1.15rem;font-weight:700}
 #eja{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
 #status{margin-top:14px;font-size:.9rem;color:var(--mut)}
@@ -44,9 +45,9 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 <div id="langkah" class="kosong">Ketik huruf, lalu tekan Eja.</div>
 <div id="grid"></div>
 <div id="aksi">
-<button id="hapus">Hapus</button>
-<button id="bersih">Bersih</button>
 <button id="eja">Eja</button>
+<button id="baca">Baca</button>
+<button id="bersih">Bersih</button>
 </div>
 <div id="contoh">Contoh kata:<div id="chips"></div></div>
 <div id="status"></div>
@@ -107,7 +108,7 @@ let d=0;const f=()=>{if(!d){d=1;r()}};u.onend=f;u.onerror=e=>{info("Suara gagal:
 speechSynthesis.speak(u)})}
 
 const $=id=>document.getElementById(id);
-const kata=$("kata"),langkah=$("langkah"),btn=$("eja");
+const kata=$("kata"),langkah=$("langkah"),btn=$("eja"),bbtn=$("baca");
 let buf="",run=0,running=false;
 function draw(){kata.textContent="";[...buf].forEach(ch=>{const s=document.createElement("span");s.textContent=ch;kata.appendChild(s)})}
 function hl(a,b){[...kata.children].forEach((s,i)=>{s.className=i>=a&&i<b?"on":""})}
@@ -137,7 +138,7 @@ out.push(r)});
 return out}
 function show(items,i){langkah.className="";langkah.textContent="";
 items.forEach((x,k)=>{const s=document.createElement("span");s.textContent=x;if(k===i)s.className="on";langkah.appendChild(s)})}
-function reset(){running=false;btn.textContent="Eja";hl(0,0)}
+function reset(){running=false;btn.textContent="Eja";bbtn.textContent="Baca";hl(0,0)}
 function stop(){run++;cancelSpeech();reset()}
 async function play(){
 if(running){stop();return}
@@ -151,13 +152,26 @@ if(id!==run)return;
 const raw=s.j||s.length===1||(i===s.length-1&&s.length>2);show(s,i);hl(R[k][i][0],R[k][i][1]);await say(raw?s[i]:fx(s[i]));await wait(250)}
 await wait(700)}
 if(id===run){langkah.className="kosong";langkah.textContent="Selesai. Coba kata lain.";reset()}}
+/* Baca: langsung membunyikan kata utuh sampai selesai, tanpa eja. */
+async function baca(){
+if(running){stop();return}
+const w=buf.toLowerCase();if(!w)return;
+const id=++run;running=true;bbtn.textContent="Berhenti";
+langkah.className="kosong";langkah.textContent="Membaca: "+w;
+hl(0,w.length);
+await say(w);
+if(id===run){langkah.textContent="Selesai. Coba kata lain.";reset()}}
 function tambah(ch){if(running)stop();buf+=ch;draw();
 cancelSpeech();setTimeout(()=>say(fx(N[ch])),60)}
 const grid=$("grid");
 for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>tambah(ch);grid.appendChild(b)}
-$("hapus").onclick=()=>{if(running)stop();buf=buf.slice(0,-1);draw()};
+/* Tombol Hapus: di baris bawah keyboard, di samping Y dan Z, memanjang mengisi sisa baris. */
+const hp=document.createElement("button");hp.id="hapus";hp.textContent="Hapus";hp.setAttribute("aria-label","hapus satu huruf");
+hp.onclick=()=>{if(running)stop();buf=buf.slice(0,-1);draw()};
+grid.appendChild(hp);
 $("bersih").onclick=()=>{if(running)stop();buf="";draw();langkah.className="kosong";langkah.textContent="Ketik huruf, lalu tekan Eja."};
 btn.onclick=play;
+bbtn.onclick=baca;
 const chips=$("chips");
 Object.keys(D).forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>{if(running)stop();buf=w;draw()};chips.appendChild(b)});
 ["hii","hih","hie","hee","hiy","deh","peh","beh","weh"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{cancelSpeech();setTimeout(()=>say(t),60)};$("ujiB").appendChild(b)});
