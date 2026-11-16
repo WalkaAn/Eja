@@ -28,6 +28,16 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 #grid button:active{background:var(--hi)}
 #grid #hapus{grid-column:span 4;font-size:1.3rem;border-color:var(--acc)}
 #aksi{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:8px;margin-top:12px}
+[hidden]{display:none!important}
+button:disabled{opacity:.4;cursor:default}
+#contohBtn{display:block;width:100%;margin-top:18px;min-height:68px;font-size:1.4rem;font-weight:700;background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.bar{display:flex;gap:8px;margin-bottom:10px}
+.kembali{padding:10px 14px;font-size:1.05rem;font-weight:700}
+h1{font-size:1.5rem;margin:6px 0 14px;text-align:center}
+#gridH{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+#gridH button{min-height:62px;font-size:1.7rem;font-weight:700}
+#daftar{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+#daftar button{min-height:64px;font-size:1.5rem;font-weight:700}
 #aksi button{min-height:56px;font-size:1.15rem;font-weight:700}
 #eja{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
 #status{margin-top:14px;font-size:.9rem;color:var(--mut)}
@@ -41,6 +51,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 </head>
 <body>
 <main>
+<div id="v-main">
 <div id="kata" aria-live="polite"></div>
 <div id="langkah" class="kosong">Ketik huruf, lalu tekan Eja.</div>
 <div id="grid"></div>
@@ -49,9 +60,20 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 <button id="baca">Baca</button>
 <button id="bersih">Bersih</button>
 </div>
-<div id="contoh">Contoh kata:<div id="chips"></div></div>
+<button id="contohBtn">CONTOH KATA</button>
 <div id="status"></div>
 <div id="uji">Suara Indonesia di perangkat: <select id="vsel"></select><br>Uji bunyi huruf (ketuk, lalu dengarkan):<div id="ujiB"></div></div>
+</div>
+<section id="v-huruf" hidden>
+<div class="bar"><button class="kembali" id="kembaliH">&larr; Kembali</button><button class="kembali" id="ulangH">Ulangi suara</button></div>
+<h1>PILIH SATU HURUF</h1>
+<div id="gridH"></div>
+</section>
+<section id="v-kata" hidden>
+<div class="bar"><button class="kembali" id="kembaliK">&larr; Kembali</button></div>
+<h1 id="judulK"></h1>
+<div id="daftar"></div>
+</section>
 </main>
 <script>
 const N={a:"a",b:"be",c:"ce",d:"de",e:"e",f:"ef",g:"ge",h:"ha",i:"i",j:"je",k:"ka",l:"el",m:"em",n:"en",o:"o",p:"pe",q:"ki",r:"er",s:"es",t:"te",u:"u",v:"ve",w:"we",x:"eks",y:"ye",z:"zet"};
@@ -165,15 +187,11 @@ function tambah(ch){if(running)stop();buf+=ch;draw();
 cancelSpeech();setTimeout(()=>say(fx(N[ch])),60)}
 const grid=$("grid");
 for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>tambah(ch);grid.appendChild(b)}
-/* Tombol Hapus: di baris bawah keyboard, di samping Y dan Z, memanjang mengisi sisa baris. */
 const hp=document.createElement("button");hp.id="hapus";hp.textContent="Hapus";hp.setAttribute("aria-label","hapus satu huruf");
 hp.onclick=()=>{if(running)stop();buf=buf.slice(0,-1);draw()};
 grid.appendChild(hp);
 $("bersih").onclick=()=>{if(running)stop();buf="";draw();langkah.className="kosong";langkah.textContent="Ketik huruf, lalu tekan Eja."};
-btn.onclick=play;
-bbtn.onclick=baca;
-const chips=$("chips");
-Object.keys(D).forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>{if(running)stop();buf=w;draw()};chips.appendChild(b)});
+btn.onclick=play;bbtn.onclick=baca;
 ["hii","hih","hie","hee","hiy","deh","peh","beh","weh"].forEach(t=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>{cancelSpeech();setTimeout(()=>say(t),60)};$("ujiB").appendChild(b)});
 (async()=>{const T=getTTS(),sel=$("vsel");if(!T||!T.getSupportedVoices){sel.style.display="none";return}
 try{const r=await T.getSupportedVoices();const vs=r.voices||[];
@@ -181,7 +199,57 @@ const o=document.createElement("option");o.value=-1;o.textContent="Bawaan";sel.a
 vs.forEach((v,i)=>{if(!/^id/i.test((v.lang||"").replace("_","-")))return;const q=document.createElement("option");q.value=i;q.textContent=(v.name||v.voiceURI)+" ("+v.lang+")";sel.appendChild(q)});
 sel.value=vidx;sel.onchange=()=>{vidx=+sel.value;try{localStorage.setItem("eja_v",vidx)}catch(e){}cancelSpeech();setTimeout(()=>say("pe"),60)}}
 catch(e){info("Gagal membaca daftar suara: "+e)}})();
-document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;
+/* Kosakata untuk halaman CONTOH KATA (A-Z). */
+const K={a:["ayam","ayah","adik","apel","atap","api","anak","awan"],
+b:["buku","bola","baju","bunga","batu","bulan","bebek","baca"],
+c:["cacing","cicak","cabai","cuci","celana","cerita","cangkir"],
+d:["dadu","dapur","daun","domba","dua","dinding","duduk","dada"],
+e:["ember","emas","enam","es","elang","ekor","embun"],
+f:["flu","fosil","foto","fajar","film"],
+g:["gigi","gunung","garam","gajah","gelas","gula","garpu","gambar"],
+h:["hari","hujan","hijau","hidung","hitam","harimau","hewan","hati"],
+i:["ibu","ikan","itik","ini","itu","indah","ikat"],
+j:["jalan","jari","jeruk","jam","jaket","jendela","jagung"],
+k:["kucing","kaki","kursi","kuda","kelapa","kotak","kata","kertas"],
+l:["lampu","laut","lari","langit","lemari","lele","lebah","lima"],
+m:["meja","mata","mobil","makan","minum","mandi","mangga","mulut"],
+n:["nasi","nanas","nama","nenek","naik","nyamuk","nyanyi"],
+o:["obat","orang","otak","ombak","ojek","oranye","olahraga"],
+p:["pisang","payung","pensil","pintu","pasir","piring","pohon","papan"],
+q:["Qur\u2019an","Qiro\u2019ah","Qiro\u2019ati"],
+r:["roti","rumah","rambut","rusa","raja","rok","radio","rumput"],
+s:["sapi","sepatu","sapu","sabun","sungai","surat","singa","susu","sepeda"],
+t:["tas","topi","tikus","tangan","tulis","telur","tiga","tali","tanah","tomat"],
+u:["ular","udang","uang","ulat","ubi","unta"],
+v:["vas","vokal","video","vitamin"],
+w:["warna","wajah","waktu","wortel","wangi","warung"],
+x:["xilofon"],
+y:["yoyo","yang","ya","yakin"],
+z:["zodiak","zebra","zona"]};
+/* Ucapan: tanda petik dibuang, awalan q dibaca k (Qur\u2019an -> kuran). */
+const ucap=w=>w.toLowerCase().replace(/[\u2019']/g,"").replace(/^q/,"k");
+let navT=0,pt=null;
+function kunciBtn(on){document.querySelectorAll("#gridH button,#daftar button,#ulangH").forEach(b=>{b.disabled=on})}
+function tampil(v){navT++;clearTimeout(pt);cancelSpeech();kunciBtn(false);
+["v-main","v-huruf","v-kata"].forEach(x=>{$(x).hidden=x!==v});window.scrollTo(0,0)}
+async function ucapKunci(t){const id=navT;kunciBtn(true);await say(t);if(id===navT)kunciBtn(false)}
+function bukaPapan(){if(running)stop();tampil("v-huruf");history.pushState({v:"v-huruf"},"");
+const id=navT;pt=setTimeout(()=>{if(id===navT)ucapKunci("Kamu pilih huruf apa?")},3000)}
+async function hurufDipilih(ch){const id=navT,n=fx(N[ch]);
+await ucapKunci("Bagus, kamu pilih huruf "+n+". Ayo lihat kata yang diawali huruf "+n+".");
+if(id===navT)bukaKata(ch)}
+function bukaKata(ch){tampil("v-kata");history.pushState({v:"v-kata"},"");
+$("judulK").textContent="Huruf "+ch.toUpperCase();
+const d=$("daftar");d.textContent="";
+K[ch].forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>ucapKunci(ucap(w));d.appendChild(b)})}
+const gH=$("gridH");
+for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>hurufDipilih(ch);gH.appendChild(b)}
+$("contohBtn").onclick=bukaPapan;
+$("ulangH").onclick=()=>ucapKunci("Kamu pilih huruf apa?");
+const kemb=()=>{if(history.state&&history.state.v)history.back();else tampil("v-main")};
+$("kembaliH").onclick=kemb;$("kembaliK").onclick=kemb;
+window.addEventListener("popstate",e=>{tampil(e.state&&e.state.v||"v-main")});
+document.addEventListener("keydown",e=>{if($("v-main").hidden)return;if(e.ctrlKey||e.metaKey||e.altKey)return;
 if(/^[a-z]$/i.test(e.key))tambah(e.key.toLowerCase());
 else if(e.key==="Backspace"){if(running)stop();buf=buf.slice(0,-1);draw()}
 else if(e.key==="Enter"){e.preventDefault();play()}});
