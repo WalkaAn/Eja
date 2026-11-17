@@ -36,6 +36,14 @@ button:disabled{opacity:.4;cursor:default}
 h1{font-size:1.5rem;margin:6px 0 14px;text-align:center}
 #gridH{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 #gridH button{min-height:62px;font-size:1.7rem;font-weight:700}
+@keyframes kdp{0%,100%{background:var(--hi)}50%{background:var(--key)}}
+button.kedip{animation:kdp .5s linear infinite;border-color:var(--acc)}
+button.kedip:disabled{opacity:1}
+#v-selip{min-height:75vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+#besar{font-size:9rem;font-weight:700;line-height:1}
+#besar span+span{margin-left:.25em}
+#mikir{font-size:4rem;margin-top:14px}
+#selip-hint{color:var(--mut);font-size:.95rem;margin-top:18px}
 #daftar{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 #daftar button{min-height:64px;font-size:1.5rem;font-weight:700}
 #aksi button{min-height:56px;font-size:1.15rem;font-weight:700}
@@ -68,6 +76,11 @@ h1{font-size:1.5rem;margin:6px 0 14px;text-align:center}
 <div class="bar"><button class="kembali" id="kembaliH">&larr; Kembali</button><button class="kembali" id="ulangH">Ulangi suara</button></div>
 <h1>PILIH SATU HURUF</h1>
 <div id="gridH"></div>
+</section>
+<section id="v-selip" hidden>
+<div id="besar"><span id="hB"></span><span id="hK"></span></div>
+<div id="mikir">🤔</div>
+<div id="selip-hint">Ketuk layar untuk lanjut</div>
 </section>
 <section id="v-kata" hidden>
 <div class="bar"><button class="kembali" id="kembaliK">&larr; Kembali</button></div>
@@ -231,24 +244,46 @@ const ucap=w=>w.toLowerCase().replace(/[\u2019']/g,"").replace(/^q/,"k");
 let navT=0,pt=null;
 function kunciBtn(on){document.querySelectorAll("#gridH button,#daftar button,#ulangH").forEach(b=>{b.disabled=on})}
 function tampil(v){navT++;clearTimeout(pt);cancelSpeech();kunciBtn(false);
-["v-main","v-huruf","v-kata"].forEach(x=>{$(x).hidden=x!==v});window.scrollTo(0,0)}
+document.querySelectorAll(".kedip").forEach(b=>b.classList.remove("kedip"));
+["v-main","v-huruf","v-selip","v-kata"].forEach(x=>{$(x).hidden=x!==v});window.scrollTo(0,0)}
 async function ucapKunci(t){const id=navT;kunciBtn(true);await say(t);if(id===navT)kunciBtn(false)}
 function bukaPapan(){if(running)stop();tampil("v-huruf");history.pushState({v:"v-huruf"},"");
 const id=navT;pt=setTimeout(()=>{if(id===navT)ucapKunci("Kamu pilih huruf apa?")},3000)}
-async function hurufDipilih(ch){const id=navT,n=fx(N[ch]);
-await ucapKunci("Bagus, kamu pilih huruf "+n+". Ayo lihat kata yang diawali huruf "+n+".");
-if(id===navT)bukaKata(ch)}
-function bukaKata(ch){tampil("v-kata");history.pushState({v:"v-kata"},"");
+/* Pujian acak berlapis: kata pujian (6) x kata penunjuk (Ini/Itu/Sungguh). Tidak mengulang pujian yang sama berturut-turut. */
+const PJ=["bagus","menarik","cerdas","tepat","wow","ternyata"],PUN=["Ini","Itu","Sungguh"];
+let lastPJ=-1;
+function pujian(n){let r;do{r=Math.floor(Math.random()*PJ.length)}while(r===lastPJ);lastPJ=r;
+const w=PJ[r];
+if(w==="wow")return"Wow! Kamu pilih huruf "+n+"!";
+if(w==="ternyata")return"Ternyata kamu pilih huruf "+n+"!";
+return PUN[Math.floor(Math.random()*PUN.length)]+" "+w+"! Kamu pilih huruf "+n+"!"}
+async function hurufDipilih(ch,el){const id=navT,n=fx(N[ch]);
+el.classList.add("kedip");
+await ucapKunci(pujian(n));
+el.classList.remove("kedip");
+if(id===navT)bukaSelip(ch)}
+let selipCh="";
+async function bukaSelip(ch){tampil("v-selip");history.pushState({v:"v-selip"},"");
+const id=navT,n=fx(N[ch]);selipCh=ch;
+$("hB").textContent=ch.toUpperCase();$("hK").textContent=ch;
+await say("Ayo lihat! Ada kata apa saja, yang diawali huruf "+n+"?");
+if(id!==navT)return;
+await wait(700);
+if(id!==navT)return;
+lanjut()}
+function lanjut(){if($("v-selip").hidden)return;history.replaceState({v:"v-kata"},"");bukaKata(selipCh,true)}
+function bukaKata(ch,nopush){tampil("v-kata");if(!nopush)history.pushState({v:"v-kata"},"");
 $("judulK").textContent="Huruf "+ch.toUpperCase();
 const d=$("daftar");d.textContent="";
 K[ch].forEach(w=>{const b=document.createElement("button");b.textContent=w;b.onclick=()=>ucapKunci(ucap(w));d.appendChild(b)})}
 const gH=$("gridH");
-for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>hurufDipilih(ch);gH.appendChild(b)}
+for(const ch of "abcdefghijklmnopqrstuvwxyz"){const b=document.createElement("button");b.textContent=ch;b.setAttribute("aria-label","huruf "+ch);b.onclick=()=>hurufDipilih(ch,b);gH.appendChild(b)}
 $("contohBtn").onclick=bukaPapan;
+$("v-selip").onclick=lanjut;
 $("ulangH").onclick=()=>ucapKunci("Kamu pilih huruf apa?");
 const kemb=()=>{if(history.state&&history.state.v)history.back();else tampil("v-main")};
 $("kembaliH").onclick=kemb;$("kembaliK").onclick=kemb;
-window.addEventListener("popstate",e=>{tampil(e.state&&e.state.v||"v-main")});
+window.addEventListener("popstate",e=>{const v=e.state&&e.state.v;tampil(v==="v-selip"?"v-huruf":v||"v-main")});
 document.addEventListener("keydown",e=>{if($("v-main").hidden)return;if(e.ctrlKey||e.metaKey||e.altKey)return;
 if(/^[a-z]$/i.test(e.key))tambah(e.key.toLowerCase());
 else if(e.key==="Backspace"){if(running)stop();buf=buf.slice(0,-1);draw()}
